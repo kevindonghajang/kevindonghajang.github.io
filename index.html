@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combat Flight Action Game with Faster Player Movement</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+        #gameArea {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        #player {
+            width: 50px;
+            height: 30px;
+            background-color: #FF4136;
+            position: absolute;
+            transition: transform 0.1s;
+        }
+        #player::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            border-bottom: 10px solid #FF4136;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+        }
+        .enemy {
+            width: 40px;
+            height: 25px;
+            background-color: #3D9970;
+            position: absolute;
+            transition: transform 0.1s;
+        }
+        .enemy::before {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 15px;
+            border-top: 8px solid #3D9970;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+        }
+        .bullet {
+            width: 5px;
+            height: 10px;
+            background-color: #FFDC00;
+            position: absolute;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            color: white;
+        }
+        #lives {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            color: white;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+        }
+        #restartInfo {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameArea">
+        <div id="player"></div>
+        <div id="score">Score: <span id="scoreValue">0</span></div>
+        <div id="lives">Lives: <span id="livesValue">3</span></div>
+        <div id="gameOver">
+            Game Over
+            <div id="restartInfo">Press Enter to Restart</div>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const gameArea = document.getElementById('gameArea');
+        const scoreValue = document.getElementById('scoreValue');
+        const livesValue = document.getElementById('livesValue');
+        const gameOverScreen = document.getElementById('gameOver');
+
+        let playerPos = { x: window.innerWidth / 2, y: window.innerHeight - 50 };
+        let enemies = [];
+        let bullets = [];
+        let score = 0;
+        let lives = 3;
+        let gameActive = true;
+
+        function updatePlayerPosition() {
+            player.style.left = `${playerPos.x}px`;
+            player.style.top = `${playerPos.y}px`;
+        }
+
+        function createEnemy() {
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            const x = Math.random() * (window.innerWidth - 40);
+            enemy.style.left = `${x}px`;
+            enemy.style.top = '-25px';
+            gameArea.appendChild(enemy);
+            enemies.push({ element: enemy, x, y: -25 });
+        }
+
+        function updateEnemies() {
+            const speed = 2;
+            enemies.forEach((enemy, index) => {
+                enemy.y += speed;
+                enemy.element.style.top = `${enemy.y}px`;
+
+                if (enemy.y > window.innerHeight) {
+                    gameArea.removeChild(enemy.element);
+                    enemies.splice(index, 1);
+                }
+
+                if (
+                    playerPos.x < enemy.x + 40 &&
+                    playerPos.x + 50 > enemy.x &&
+                    playerPos.y < enemy.y + 25 &&
+                    playerPos.y + 30 > enemy.y
+                ) {
+                    gameArea.removeChild(enemy.element);
+                    enemies.splice(index, 1);
+                    lives--;
+                    livesValue.textContent = lives;
+                    if (lives === 0) {
+                        gameActive = false;
+                        gameOverScreen.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        function createBullet() {
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            bullet.style.left = `${playerPos.x + 22.5}px`;
+            bullet.style.top = `${playerPos.y}px`;
+            gameArea.appendChild(bullet);
+            bullets.push({ element: bullet, x: playerPos.x + 22.5, y: playerPos.y });
+        }
+
+        function updateBullets() {
+            const speed = 5;
+            bullets.forEach((bullet, bulletIndex) => {
+                bullet.y -= speed;
+                bullet.element.style.top = `${bullet.y}px`;
+
+                if (bullet.y < 0) {
+                    gameArea.removeChild(bullet.element);
+                    bullets.splice(bulletIndex, 1);
+                }
+
+                enemies.forEach((enemy, enemyIndex) => {
+                    if (
+                        bullet.x < enemy.x + 40 &&
+                        bullet.x + 5 > enemy.x &&
+                        bullet.y < enemy.y + 25 &&
+                        bullet.y + 10 > enemy.y
+                    ) {
+                        gameArea.removeChild(enemy.element);
+                        enemies.splice(enemyIndex, 1);
+                        gameArea.removeChild(bullet.element);
+                        bullets.splice(bulletIndex, 1);
+                        score++;
+                        scoreValue.textContent = score;
+                    }
+                });
+            });
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+
+            updatePlayerPosition();
+            updateEnemies();
+            updateBullets();
+
+            if (Math.random() < 0.02) {
+                createEnemy();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function restartGame() {
+            gameActive = true;
+            gameOverScreen.style.display = 'none';
+            score = 0;
+            lives = 3;
+            scoreValue.textContent = score;
+            livesValue.textContent = lives;
+            enemies.forEach(enemy => gameArea.removeChild(enemy.element));
+            enemies = [];
+            bullets.forEach(bullet => gameArea.removeChild(bullet.element));
+            bullets = [];
+            playerPos = { x: window.innerWidth / 2, y: window.innerHeight - 50 };
+            updatePlayerPosition();
+            gameLoop();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive && e.code === 'Enter') {
+                restartGame();
+                return;
+            }
+
+            if (!gameActive) return;
+
+            const moveStep = 25; // Modified from 12 to 25
+            switch (e.key) {
+                case 'ArrowUp':
+                    playerPos.y = Math.max(0, playerPos.y - moveStep);
+                    break;
+                case 'ArrowDown':
+                    playerPos.y = Math.min(window.innerHeight - 30, playerPos.y + moveStep);
+                    break;
+                case 'ArrowLeft':
+                    playerPos.x = Math.max(0, playerPos.x - moveStep);
+                    break;
+                case 'ArrowRight':
+                    playerPos.x = Math.min(window.innerWidth - 50, playerPos.x + moveStep);
+                    break;
+                case ' ':
+                    if (gameActive) {
+                        createBullet();
+                    }
+                    break;
+            }
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
